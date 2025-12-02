@@ -38,7 +38,7 @@ gdp_growth <- gdp_full %>%
     g_ma3 = (g_yoy + lag(g_yoy) + lag(g_yoy, 2)) / 3
   ) %>%
   filter(!is.na(g_yoy)) %>%
-  filter(!is.na(g_ma3) %>%
+  filter(!is.na(g_ma3)) %>%
   ungroup()
 
 # continent gdp growth with year-on-year and 3 year moving average(MA3)
