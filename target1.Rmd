@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
+library(scales)
 
 #Download file
 country <- read.csv("/Users/cici/Desktop/introduction to ds/data sets/continents-according-to-our-world-in-data.csv")                  
@@ -38,7 +39,7 @@ gdp_growth <- gdp_full %>%
   filter(!is.na(g_ma3) %>%
   ungroup()
 
-# continent gdp growth with year-on-year and 3 year moving average(MA3)
+#continent gdp growth with year-on-year and 3 year moving average(MA3)
 continent_growth <- gdp_growth %>%
   group_by(Continent, Year) %>%
   summarise(
@@ -47,8 +48,9 @@ continent_growth <- gdp_growth %>%
     n_countries = n_distinct(country),.groups = "drop"
   )
 
-# Visualization
-# 1. continent year average GDP growth 
+
+#------GDP gorwth-------
+# continent year average GDP growth 
 p1 <- ggplot(continent_growth, aes(x = Year, y = g_yoy_mean, color = Continent)) +
   geom_line(linewidth = 0.9) +
   labs(title = "Year Average GDP growth per captita ",
@@ -75,7 +77,100 @@ p3 <- gdp_growth %>%
   theme(legend.position = "none")
 print(p3)
 
-#output result in csv
-write_csv(gdp_growth,          "out_country_growth_yoy.csv")      
-write_csv(continent_growth,   "out_continent_growth_yoy.csv")   
+
+#-----Evaluate the robustness indicators of "time progress" for each continent-----
+# The "maximum length of consecutive positive growth" and "proportion of positive growth" at the national level
+calc_max_run <- function(x) {
+  x <- ifelse(is.na(x), FALSE, x > 0)
+  r <- rle(x)
+  if (length(r$lengths) == 0) return(0L)
+  max(r$lengths[r$values == TRUE], na.rm = TRUE)
+}
+
+country_stability <- gdp_growth %>%
+  group_by(country, Continent) %>%
+  summarise(
+    pos_share = mean(g_yoy > 0, na.rm = TRUE),
+    max_run_pos = calc_max_run(g_yoy),.groups = "drop"
+  )
+
+# Summary at the continent level: Average positive growth rate, average maximum consecutive positive growth
+continent_stability <- country_stability %>%
+  group_by(Continent) %>%
+  summarise(
+    mean_pos_share = mean(pos_share, na.rm = TRUE),
+    mean_max_run   = mean(max_run_pos, na.rm = TRUE),.groups = "drop"
+  )
+
+print(continent_stability)
+
+#Visualization: Distribution of "Positive Growth Proportion" of Countries in Each Continent
+p_pos_box <- ggplot(country_stability, aes(x = Continent, y = pos_share, fill = Continent)) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  coord_flip() +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(title = "Proportions of positive growth (by continent distribution)",
+       x = "Continent", y = "Positive growth rate") +
+  theme_minimal() + theme(legend.position = "none")
+print(p_pos_box)
+
+#--------"Individual Progress on All Continents": National Trends and Rankings--------
+# Average growth rate during the window period at the national level (for ranking purposes)
+country_avg <- gdp_growth %>%
+  group_by(country, Continent) %>%
+  summarise(
+    avg_yoy = mean(g_yoy, na.rm = TRUE),
+    avg_ma3 = mean(g_ma3, na.rm = TRUE),.groups = "drop"
+  )
+
+#  Every continent Top 5 / Bottom 5
+top_bottom_by_continent <- country_avg %>%
+  group_by(Continent) %>%
+  arrange(desc(avg_yoy),.by_group = TRUE) %>%
+  mutate(rank_yoy = row_number()) %>%
+  summarise(
+    top5   = paste(head(country, 5), collapse = ", "),
+    bottom5= paste(tail(country, 5), collapse = ", "),.groups = "drop"
+  )
+
+print(top_bottom_by_continent)
+
+# Visualization：Every continent's Top 10 countries（averagr gdp growth comparison）
+p_top10 <- country_avg %>%
+  group_by(Continent) %>%
+  slice_max(order_by = avg_yoy, n = 10, with_ties = FALSE) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(country, avg_yoy), y = avg_yoy, fill = Continent)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
+  facet_wrap(~ Continent, scales = "free_y") +
+  labs(title = "Continents' Top 10 countries (averagr GDP growth)",
+       x = "country", y = "year-on-year growth") +
+  theme_minimal() + theme(legend.position = "none")
+print(p_top10)
+
+#the least developed country list form UN
+ldc<- c(
+  # Africa (32)
+  "Angola","Benin","Burkina Faso","Burundi","Central African Republic","Chad","Comoros",
+  "Democratic Republic of the Congo","Djibouti","Eritrea","Ethiopia","Gambia","Guinea",
+  "Guinea-Bissau","Lesotho","Liberia","Madagascar","Malawi","Mali","Mauritania","Mozambique",
+  "Niger","Rwanda","Senegal","Sierra Leone","Somalia","South Sudan","Sudan","Togo","Uganda",
+  "tanzania","Zambia",
+  # Asia (8)
+  "Afghanistan","Bangladesh","Cambodia","laos","Myanmar",
+  "Nepal","east timor","Yemen",
+  # Caribbean (1)
+  "Haiti",
+  # Pacific (3)
+  "Kiribati","Solomon Islands","Tuvalu"
+)
+# print result
+write_csv(continent_growth,      "out_continent_growth_yoy.csv")
+write_csv(country_stability,     "out_country_stability.csv")
+write_csv(continent_stability,   "out_continent_stability.csv")
+write_csv(country_avg,           "out_country_avg_growth.csv")
+write_csv(top_bottom_by_continent,"out_top_bottom_by_continent.csv")
+write_csv(gdp_growth,          "out_country_growth_yoy.csv") 
 
