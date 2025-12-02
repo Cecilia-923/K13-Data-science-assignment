@@ -1,6 +1,8 @@
 ---
 title: "Target1"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 date: "2025-12-02"
 ---
 
@@ -8,13 +10,13 @@ date: "2025-12-02"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#R（tidyverse、ggplot2）
+# R(tidyverse、ggplot2)
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
 library(scales)
 
-#Download file
+# Download file
 country <- read.csv("/Users/cici/Desktop/introduction to ds/data sets/continents-according-to-our-world-in-data.csv")                  
 gdp <-read.csv("/Users/cici/Desktop/introduction to ds/data sets/gdp-per-capita-worldbank.csv")
 
@@ -39,7 +41,8 @@ gdp_growth <- gdp_full %>%
   filter(!is.na(g_ma3) %>%
   ungroup()
 
-#continent gdp growth with year-on-year and 3 year moving average(MA3)
+# continent gdp growth with year-on-year and 3 year moving average(MA3)
+
 continent_growth <- gdp_growth %>%
   group_by(Continent, Year) %>%
   summarise(
@@ -49,19 +52,21 @@ continent_growth <- gdp_growth %>%
   )
 
 
-#------GDP gorwth-------
+# 1 GDP gorwth
 # continent year average GDP growth 
+
 p1 <- ggplot(continent_growth, aes(x = Year, y = g_yoy_mean, color = Continent)) +
   geom_line(linewidth = 0.9) +
-  labs(title = "Year Average GDP growth per captita ",
+  labs(title = "Year Average GDP growth per capita ",
        x = "Year", y = "year-on-year growth") +
   theme_minimal()
 print(p1)
 
 # The smoothed growth rates of each continent (MA3)
+
 p2 <- ggplot(continent_growth, aes(x = Year, y = g_ma3_mean, color = Continent)) +
   geom_line(size = 0.9) +
-  labs(title = "3 Year moving Average GDP growth per captita）",
+  labs(title = "3 Year moving Average GDP growth per capita）",
        x = "Year", y = "3 year moving growth") +
   theme_minimal()
 print(p2)
@@ -78,7 +83,7 @@ p3 <- gdp_growth %>%
 print(p3)
 
 
-#-----Evaluate the robustness indicators of "time progress" for each continent-----
+# 2 Evaluate the robustness indicators of "time progress" for each continent-----
 # The "maximum length of consecutive positive growth" and "proportion of positive growth" at the national level
 calc_max_run <- function(x) {
   x <- ifelse(is.na(x), FALSE, x > 0)
@@ -114,7 +119,7 @@ p_pos_box <- ggplot(country_stability, aes(x = Continent, y = pos_share, fill = 
   theme_minimal() + theme(legend.position = "none")
 print(p_pos_box)
 
-#--------"Individual Progress on All Continents": National Trends and Rankings--------
+# 3 "Individual Progress on All Continents": National Trends and Rankings
 # Average growth rate during the window period at the national level (for ranking purposes)
 country_avg <- gdp_growth %>%
   group_by(country, Continent) %>%
@@ -150,7 +155,7 @@ p_top10 <- country_avg %>%
   theme_minimal() + theme(legend.position = "none")
 print(p_top10)
 
-#the least developed country list form UN
+# the least developed country list form UN
 ldc<- c(
   # Africa (32)
   "Angola","Benin","Burkina Faso","Burundi","Central African Republic","Chad","Comoros",
@@ -172,5 +177,5 @@ write_csv(country_stability,     "out_country_stability.csv")
 write_csv(continent_stability,   "out_continent_stability.csv")
 write_csv(country_avg,           "out_country_avg_growth.csv")
 write_csv(top_bottom_by_continent,"out_top_bottom_by_continent.csv")
-write_csv(gdp_growth,          "out_country_growth_yoy.csv") 
+write_csv(gdp_growth,          "out_country_growth_yoy.csv")      
 
