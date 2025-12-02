@@ -1,0 +1,81 @@
+---
+title: "Target1"
+output: html_document
+date: "2025-12-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#R（tidyverse、ggplot2）
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+
+#Download file
+country <- read.csv("/Users/cici/Desktop/introduction to ds/data sets/continents-according-to-our-world-in-data.csv")                  
+gdp <-read.csv("/Users/cici/Desktop/introduction to ds/data sets/gdp-per-capita-worldbank.csv")
+
+country <- country %>% select("Entity", "Code", "Continent")
+gdp_full <- gdp %>%
+  inner_join(country, by = c("Entity", "Code")) %>%
+  group_by(Code) %>%
+  rename(country = Entity, 
+  gdp_cap = GDP.per.capita..PPP..constant.2017.international...)
+
+  
+
+# calculate GDP in country with year average and 3 year moving average  
+gdp_growth <- gdp_full %>%
+  arrange(country, Year) %>%
+  group_by(country) %>%
+  mutate(
+    g_yoy = (gdp_cap- lag(gdp_cap)) / lag(gdp_cap),
+    g_ma3 = (g_yoy + lag(g_yoy) + lag(g_yoy, 2)) / 3
+  ) %>%
+  filter(!is.na(g_yoy)) %>%
+  filter(!is.na(g_ma3) %>%
+  ungroup()
+
+# continent gdp growth with year-on-year and 3 year moving average(MA3)
+continent_growth <- gdp_growth %>%
+  group_by(Continent, Year) %>%
+  summarise(
+    g_yoy_mean = mean(g_yoy, na.rm = TRUE),
+    g_ma3_mean = mean(g_ma3, na.rm = TRUE),
+    n_countries = n_distinct(country),.groups = "drop"
+  )
+
+# Visualization
+# 1. continent year average GDP growth 
+p1 <- ggplot(continent_growth, aes(x = Year, y = g_yoy_mean, color = Continent)) +
+  geom_line(linewidth = 0.9) +
+  labs(title = "Year Average GDP growth per captita ",
+       x = "Year", y = "year-on-year growth") +
+  theme_minimal()
+print(p1)
+
+# The smoothed growth rates of each continent (MA3)
+p2 <- ggplot(continent_growth, aes(x = Year, y = g_ma3_mean, color = Continent)) +
+  geom_line(size = 0.9) +
+  labs(title = "3 Year moving Average GDP growth per captita）",
+       x = "Year", y = "3 year moving growth") +
+  theme_minimal()
+print(p2)
+
+# Growth rate distribution at the national level (box plot)
+p3 <- gdp_growth %>%
+  ggplot(aes(x = Continent, y = g_yoy, fill = Continent)) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  coord_flip() +
+  labs(title = "Annual per capita GDP growth rate distribution at the national level (by continent)",
+       x = "Continent", y = "year-on-year growth") +
+  theme_minimal() +
+  theme(legend.position = "none")
+print(p3)
+
+#output result in csv
+write_csv(gdp_growth,          "out_country_growth_yoy.csv")      
+write_csv(continent_growth,   "out_continent_growth_yoy.csv")   
+
