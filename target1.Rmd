@@ -17,8 +17,8 @@ library(dplyr)
 library(scales)
 
 # Download file
-country <- read.csv("data/continents-according-to-our-world-in-data.csv")                  
-gdp <- read.csv("data/gdp-per-capita-worldbank.csv")
+country <- read.csv("continents-according-to-our-world-in-data.csv")                  
+gdp <- read.csv("gdp-per-capita-worldbank.csv")
 
 country <- country %>% select("Entity", "Code", "Continent")
 gdp_full <- gdp %>%
