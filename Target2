@@ -1,0 +1,97 @@
+# -------------------------------------------------------------------
+# Setup
+# -------------------------------------------------------------------
+setwd("/Users/raulmassoud/Downloads/data sets")
+
+library(dplyr)
+library(ggplot2)
+
+# -------------------------------------------------------------------
+# 1. Load CSV files
+# -------------------------------------------------------------------
+ynie <- read.csv("youth-not-in-education-employment-training.csv")
+cont <- read.csv("continents-according-to-our-world-in-data.csv")
+
+# -------------------------------------------------------------------
+# 2. Standardise names manually (NO janitor)
+# -------------------------------------------------------------------
+
+# Identify likely column names
+names(ynie)
+names(cont)
+
+# Rename key columns
+colnames(ynie)[colnames(ynie) %in% c("Entity","Country","entity","country")] <- "country"
+colnames(ynie)[colnames(ynie) == "Year"] <- "year"
+
+# Find NEET column (different datasets use different names)
+neet_col <- grep("youth|not.in|NEET|neet", names(ynie), ignore.case = TRUE, value = TRUE)[1]
+colnames(ynie)[colnames(ynie) == neet_col] <- "neet"
+
+# Clean continent dataset
+colnames(cont)[colnames(cont) %in% c("Entity","Country","entity","country")] <- "country"
+colnames(cont)[grepl("Continent", colnames(cont), ignore.case = TRUE)] <- "continent"
+
+# -------------------------------------------------------------------
+# 3. Merge NEET + continents
+# -------------------------------------------------------------------
+ynie_cont <- merge(ynie, cont, by = "country", all.x = TRUE)
+
+# Drop entries with no continent (e.g. "World", regions)
+ynie_cont <- ynie_cont[!is.na(ynie_cont$continent), ]
+
+# Keep data only up to 2020
+ynie_cont <- ynie_cont[ynie_cont$year <= 2020, ]
+
+# Drop missing NEET values
+ynie_cont <- ynie_cont[!is.na(ynie_cont$neet), ]
+
+
+# -------------------------------------------------------------------
+# 4. Compute average NEET by continent + year
+# -------------------------------------------------------------------
+continent_neet <- ynie_cont %>%
+  group_by(continent, year) %>%
+  summarise(neet_mean = mean(neet, na.rm = TRUE))
+
+# -------------------------------------------------------------------
+# 5. Make summary table for 2000 vs 2020
+# -------------------------------------------------------------------
+neet_2000_2020 <- continent_neet %>%
+  filter(year %in% c(2000, 2020)) %>%
+  tidyr::pivot_wider(names_from = year, values_from = neet_mean,
+                     names_prefix = "neet_") %>%
+  mutate(
+    abs_change = neet_2020 - neet_2000,
+    pct_change = (neet_2020 - neet_2000) / neet_2000 * 100
+  )
+
+print(neet_2000_2020)
+
+# -------------------------------------------------------------------
+# 6. Plot: NEET trend by continent
+# -------------------------------------------------------------------
+ggplot(continent_neet, aes(x = year, y = neet_mean, colour = continent)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Youth NEET rate over time (by continent)",
+    x = "Year",
+    y = "NEET %"
+  ) +
+  theme_minimal()
+
+# -------------------------------------------------------------------
+# 7. Plot: Change from 2000 → 2020
+# -------------------------------------------------------------------
+neet_change <- neet_2000_2020[complete.cases(neet_2000_2020), ]
+
+ggplot(neet_change, aes(x = reorder(continent, abs_change), y = abs_change, fill = abs_change < 0)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c("TRUE" = "green", "FALSE" = "red")) +
+  labs(
+    title = "Change in NEET rate (2000 → 2020)",
+    x = "Continent",
+    y = "Change in NEET %"
+  ) +
+  theme_minimal()
