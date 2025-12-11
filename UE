@@ -1,0 +1,56 @@
+unemployment <- read.csv("C:/Users/megan/OneDrive/Desktop/work/imperial/data science/global_unemployment_data.csv")                  
+continents <-read.csv("C:/Users/megan/OneDrive/Desktop/work/imperial/data science/continents-according-to-our-world-in-data.csv")
+
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+unemployment <- read.csv("global_unemployment_data.csv")
+continents <- read.csv("continents-according-to-our-world-in-data.csv")
+
+unemp <- unemployment %>%
+  select(country_name, X2014:X2024) %>%
+  filter(rowSums(is.na(select(., X2014:X2024))) < ncol(select(., X2014:X2024)))
+
+merged <- unemp %>%
+  left_join(continents, by = c("country_name" = "Entity")) %>%
+  filter(!is.na(Continent))
+
+continent_unemp <- merged %>%
+  group_by(Continent) %>%
+  summarize(
+    mean_2014 = mean(X2014, na.rm = TRUE),
+    mean_2015 = mean(X2015, na.rm = TRUE),
+    mean_2016 = mean(X2016, na.rm = TRUE),
+    mean_2017 = mean(X2017, na.rm = TRUE),
+    mean_2018 = mean(X2018, na.rm = TRUE),
+    mean_2019 = mean(X2019, na.rm = TRUE),
+    mean_2020 = mean(X2020, na.rm = TRUE),
+    mean_2021 = mean(X2021, na.rm = TRUE),
+    mean_2022 = mean(X2022, na.rm = TRUE),
+    mean_2023 = mean(X2023, na.rm = TRUE),
+    mean_2024 = mean(X2024, na.rm = TRUE)
+  )
+
+
+continent_unemp_long <- continent_unemp %>%
+  pivot_longer(
+    cols = starts_with("mean_"),
+    names_to = "Year",
+    values_to = "Unemployment"
+  ) %>%
+  mutate(Year = as.numeric(gsub("mean_", "", Year))) %>%
+  filter(!is.na(Unemployment))
+
+ggplot(continent_unemp_long, aes(x = Year, y = Unemployment, color = Continent, group = Continent)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  labs(
+    title = "Unemployment Rates by Continent (2014–2024)",
+    x = "Year",
+    y = "Unemployment Rate (%)",
+    color = "Continent"
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = 2014:2024)
