@@ -1,0 +1,25 @@
+library(ggplot2)
+library(readr)
+library(tidyverse)
+
+data <- read.csv("C:/Users/megan/OneDrive/Desktop/work/imperial/data science/ue vs neet.csv")
+
+ggplot(data, aes(x = Unemployment, y = NEET, color = Continent)) +
+  geom_point(size = 2, alpha = 0.7) +   
+  geom_smooth(method = "lm", se = FALSE) +  
+  labs(
+    title = "Unemployment vs NEET by Continent",
+    x = "Unemployment Rate (%)",
+    y = "NEET Rate (%)"
+  ) +
+  theme_minimal()
+
+library(dplyr)
+
+cor_by_continent <- data %>%
+  group_by(Continent) %>%
+  summarise(
+    correlation = cor(Unemployment, NEET, use = "complete.obs")
+  )
+
+cor_by_continent
